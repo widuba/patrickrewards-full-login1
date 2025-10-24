@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Points Tracker – Login & Tasks</title>
+  <style>
+    :root {
+      --bg: #0f1221; --card: #161a31; --muted: #a4acc4; --text: #eef1ff;
+      --accent: #7c5cff; --accent-2: #20dfa8; --danger: #ff5470; --ok: #40d37a;
+      --shadow: 0 10px 30px rgba(0,0,0,0.35);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      color: var(--text);
+      background: radial-gradient(1200px 800px at 20% -10%, rgba(124,92,255,.25), transparent),
+                  radial-gradient(900px 600px at 120% 10%, rgba(32,223,168,.18), transparent),
+                  var(--bg);
+      min-height: 100vh; display: grid; place-items: center; padding: 24px;
+    }
+    .app { width: 100%; max-width: 980px; display: grid; gap: 16px; }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.02));
+      border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; box-shadow: var(--shadow); padding: 20px;
+    }
+    h1,h2,h3 { margin: 0 0 10px; }
+    .muted { color: var(--muted); font-size: .9rem; }
+    .row { display: flex; gap: 12px; align-items: center; }
+    .col { display: grid; gap: 10px; }
+    .grid { display: grid; gap: 16px; }
+    .grid.cols-2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    @media (max-width: 800px) { .grid.cols-2 { grid-template-columns: 1fr; } }
+    input, button { font: inherit; color: var(--text); }
+    input {
+      background: var(--card); border: 1px solid rgba(255,255,255,0.12);
+      padding: 10px 12px; border-radius: 10px; outline: none; width: 100%;
+    }
+    input::placeholder { color: #8e93ab; }
+    button {
+      background: var(--accent); border: none; padding: 10px 14px; border-radius: 10px; cursor: pointer;
+      transition: transform .04s ease, filter .2s ease; white-space: nowrap;
+    }
+    button:hover { filter: brightness(1.05); } button:active { transform: translateY(1px); }
+    .btn-ghost { background: transparent; border: 1px solid rgba(255,255,255,0.15); }
+    .btn-ok { background: var(--ok); color: #04130a; }
+    .btn-danger { background: var(--danger); }
+    .chip { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); padding: 6px 10px; border-radius: 999px; }
+    .right { margin-left: auto; } .nowrap { white-space: nowrap; } .center { text-align: center; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px; text-align: left; }
+    tr + tr td, tr + tr th { border-top: 1px solid rgba(255,255,255,0.1); }
+    th { color: var(--muted); font-weight: 600; }
+    .pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.06); }
+    .total {
+      font-size: 2.4rem; font-weight: 800; letter-spacing: .5px;
+      background: linear-gradient(90deg, #fff, #cdd6ff); -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .small { font-size: .9rem; } .link { color: var(--accent-2); text-decoration: none; }
+    .error { color: #ff9aa7; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- Auth Card -->
+    <div id="authCard" class="card" style="display:none">
+      <h1>Welcome</h1>
+      <p class="muted">Log in or create an account to track and adjust points for your tasks.</p>
+
+      <div class="grid cols-2" id="authTabs">
+        <div class="card">
+          <h3>Log in</h3>
+          <div class="col">
+            <label> Email
+              <input id="loginUser" placeholder="you@example.com" autocomplete="username"/>
+            </label>
+            <label> Password
+              <input id="loginPass" type="password" placeholder="Your password" autocomplete="current-password"/>
+            </label>
+            <button id="loginBtn">Log in</button>
+            <p class="muted small">No account? Create one on the right →</p>
+            <p id="loginErr" class="error"></p>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Create account</h3>
+          <div class="col">
+            <label> Email
+              <input id="regUser" placeholder="you@example.com" autocomplete="username"/>
+            </label>
+            <label> Password
+              <input id="regPass" type="password" placeholder="at least 6 characters" autocomplete="new-password"/>
+            </label>
+            <button id="regBtn" class="btn-ok">Create account</button>
+            <p class="muted small">Accounts are stored securely in Firebase. You can log in from any device.</p>
+            <p id="regErr" class="error"></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="muted small">
+        <p><strong>Note:</strong> This site uses Firebase Auth + Firestore. Your data syncs in real time across devices.</p>
+      </div>
+    </div>
+
+    <!-- App Card -->
+    <div id="appCard" class="card" style="display:none">
+      <div class="row">
+        <h2 id="hello"></h2>
+        <span class="chip right" id="lastSaved">autosave: ready</span>
+        <button id="logoutBtn" class="btn-ghost">Log out</button>
+      </div>
+
+      <div class="grid cols-2">
+        <div class="card">
+          <div class="row">
+            <div>
+              <div class="muted">Total points</div>
+              <div id="totalPoints" class="total">0</div>
+            </div>
+            <span class="pill right">
+              <span class="muted">Quick adjust</span>
+              <input id="quickAmount" type="number" step="1" value="10" style="width:90px"/>
+              <button id="quickAdd">+ Add</button>
+              <button id="quickSub" class="btn-danger">− Subtract</button>
+            </span>
+          </div>
+          <div class="muted" style="margin-top:6px">Tip: use the buttons to quickly add/subtract any amount.</div>
+        </div>
+
+        <div class="card">
+          <h3>New task</h3>
+          <div class="row">
+            <input id="taskName" placeholder="Task name (e.g., Homework)"/>
+            <input id="taskValue" type="number" step="1" placeholder="Points (e.g., 5)" style="max-width:140px"/>
+            <button id="addTask">Add task</button>
+          </div>
+          <div class="muted small">Each task holds a default point value. You can change it later.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Tasks</h3>
+        <div class="muted" id="noTasks" style="display:none">No tasks yet. Add one above to get started.</div>
+        <table id="tasksTable" style="display:none">
+          <thead>
+            <tr>
+              <th style="width:36px">#</th>
+              <th>Task</th>
+              <th style="width:160px">Default points</th>
+              <th style="width:280px">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tasksBody"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>History</h3>
+        <div class="row" style="margin-bottom:8px">
+          <span class="muted small">Recent changes</span>
+          <a class="link right small" href="#" id="clearHistory">Clear history</a>
+        </div>
+        <table id="histTable">
+          <thead>
+            <tr>
+              <th style="width:180px">Time</th>
+              <th>Action</th>
+              <th style="width:120px" class="nowrap">Δ Points</th>
+              <th style="width:120px">Total</th>
+            </tr>
+          </thead>
+          <tbody id="histBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase (CDN, no build tools needed) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+    import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc, runTransaction, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+
+    // YOUR CONFIG (from your message)
+    const firebaseConfig = {
+      apiKey: "AIzaSyDZ237z9TsiTZt0WQRN0VljC61Ug6QejPU",
+      authDomain: "patricks-rewards-program.firebaseapp.com",
+      projectId: "patricks-rewards-program",
+      storageBucket: "patricks-rewards-program.firebasestorage.app",
+      messagingSenderId: "928495158543",
+      appId: "1:928495158543:web:6851ccef5564ff61edea7a",
+      measurementId: "G-KFYMMMKCLZ"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // UI helpers
+    const ui = {
+      authCard: document.getElementById('authCard'),
+      appCard: document.getElementById('appCard'),
+      hello: document.getElementById('hello'),
+      total: document.getElementById('totalPoints'),
+      tasksBody: document.getElementById('tasksBody'),
+      tasksTable: document.getElementById('tasksTable'),
+      noTasks: document.getElementById('noTasks'),
+      histBody: document.getElementById('histBody'),
+      lastSaved: document.getElementById('lastSaved'),
+    };
+
+    const setSaved = (state) => {
+      if (!ui.lastSaved) return;
+      if (state === 'saving') ui.lastSaved.textContent = 'autosave: saving…';
+      else if (state === 'saved') {
+        ui.lastSaved.textContent = 'autosave: saved';
+        setTimeout(()=> ui.lastSaved.textContent = 'autosave: ready', 1000);
+      } else ui.lastSaved.textContent = 'autosave: ready';
+    };
+
+    const userRef = (uid) => doc(db, "users", uid);
+
+    async function ensureProfile(uid, extra = {}) {
+      const r = userRef(uid);
+      const s = await getDoc(r);
+      if (!s.exists()) {
+        await setDoc(r, { username: "", total: 0, tasks: [], history: [], ...extra });
+      }
+    }
+
+    // ---------- Auth Handlers ----------
+    document.getElementById('regBtn').onclick = async () => {
+      const email = document.getElementById('regUser').value.trim();
+      const pass  = document.getElementById('regPass').value;
+      const errEl = document.getElementById('regErr'); errEl.textContent = "";
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, email, pass);
+        await ensureProfile(cred.user.uid, { username: email });
+      } catch (e) { errEl.textContent = e.message; }
+    };
+
+    document.getElementById('loginBtn').onclick = async () => {
+      const email = document.getElementById('loginUser').value.trim();
+      const pass  = document.getElementById('loginPass').value;
+      const errEl = document.getElementById('loginErr'); errEl.textContent = "";
+      try { await signInWithEmailAndPassword(auth, email, pass); }
+      catch (e) { errEl.textContent = e.message; }
+    };
+
+    document.getElementById('logoutBtn').onclick = () => signOut(auth);
+
+    // ---------- Data ops ----------
+    async function adjust(delta, note){
+      const u = auth.currentUser; if (!u) return;
+      const r = userRef(u.uid);
+      setSaved('saving');
+      await runTransaction(db, async (tx) => {
+        const s = await tx.get(r);
+        const d = s.data() || { total: 0, tasks: [], history: [] };
+        const total = (d.total || 0) + delta;
+        (d.history ||= []).push({ time: Date.now(), note, delta, total });
+        tx.set(r, { ...d, total, history: d.history });
+      });
+      setSaved('saved');
+    }
+
+    // Add task
+    document.getElementById('addTask').onclick = async () => {
+      const u = auth.currentUser; if (!u) return;
+      const name = document.getElementById('taskName').value.trim();
+      const val  = parseInt(document.getElementById('taskValue').value, 10);
+      if (!name || isNaN(val)) return;
+      const r = userRef(u.uid);
+      setSaved('saving');
+      await runTransaction(db, async (tx) => {
+        const s = await tx.get(r);
+        const d = s.data() || { total: 0, tasks: [], history: [] };
+        d.tasks.push({ id: crypto.randomUUID(), name, value: val });
+        tx.set(r, d);
+      });
+      setSaved('saved');
+      document.getElementById('taskName').value = "";
+      document.getElementById('taskValue').value = "";
+    };
+
+    // Task apply/remove/delete (event delegation)
+    ui.tasksBody.addEventListener('click', async (e) => {
+      const el = e.target;
+      const id = el.getAttribute('data-id'); if (!id) return;
+      const u = auth.currentUser; if (!u) return;
+      const r = userRef(u.uid);
+
+      if (el.classList.contains('do-task') || el.classList.contains('undo-task')) {
+        const amtInput = ui.tasksBody.querySelector(`input.task-amt[data-id="${id}"]`);
+        const amt = parseInt(amtInput.value, 10) || 0;
+        if (!amt) return;
+        await adjust(el.classList.contains('do-task') ? amt : -amt,
+                     el.classList.contains('do-task') ? `Applied task: ${id}` : `Removed task: ${id}`);
+      }
+
+      if (el.classList.contains('del-task')) {
+        setSaved('saving');
+        await runTransaction(db, async (tx) => {
+          const s = await tx.get(r);
+          const d = s.data(); if (!d) return;
+          d.tasks = (d.tasks || []).filter(x => x.id !== id);
+          (d.history ||= []).push({ time: Date.now(), note: `Deleted task`, delta: 0, total: d.total || 0 });
+          tx.set(r, d);
+        });
+        setSaved('saved');
+      }
+    });
+
+    // Inline edits for name/value
+    ui.tasksBody.addEventListener('change', async (e) => {
+      const t = e.target;
+      const id = t.getAttribute('data-id'); if (!id) return;
+      const u = auth.currentUser; if (!u) return;
+      const r = userRef(u.uid);
+
+      setSaved('saving');
+      await runTransaction(db, async (tx) => {
+        const s = await tx.get(r);
+        const d = s.data(); if (!d) return;
+        const item = (d.tasks || []).find(x => x.id === id); if (!item) return;
+
+        if (t.classList.contains('task-name')) {
+          item.name = t.value.trim() || item.name;
+          (d.history ||= []).push({ time: Date.now(), note: `Renamed task to: ${item.name}`, delta: 0, total: d.total || 0 });
+        }
+        if (t.classList.contains('task-value')) {
+          const v = parseInt(t.value, 10);
+          if (!isNaN(v)) {
+            item.value = v;
+            (d.history ||= []).push({ time: Date.now(), note: `Changed default points for ${item.name} to ${v}`, delta: 0, total: d.total || 0 });
+          }
+        }
+        tx.set(r, d);
+      });
+      setSaved('saved');
+    });
+
+    // Quick adjust buttons
+    document.getElementById('quickAdd').onclick = () => {
+      const n = parseInt(document.getElementById('quickAmount').value, 10) || 0;
+      if (n) adjust(n, `Quick add +${n}`);
+    };
+    document.getElementById('quickSub').onclick = () => {
+      const n = parseInt(document.getElementById('quickAmount').value, 10) || 0;
+      if (n) adjust(-n, `Quick subtract −${n}`);
+    };
+
+    // Clear history (doesn't change total)
+    document.getElementById('clearHistory').addEventListener('click', async (e) => {
+      e.preventDefault();
+      const u = auth.currentUser; if (!u) return;
+      const r = userRef(u.uid);
+      if (!confirm('Clear history? This does not change your total.')) return;
+      setSaved('saving');
+      await runTransaction(db, async (tx) => {
+        const s = await tx.get(r);
+        const d = s.data() || { total: 0, tasks: [], history: [] };
+        d.history = [];
+        tx.set(r, d);
+      });
+      setSaved('saved');
+    });
+
+    // Live auth + realtime data
+    let unsub = null;
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        ui.authCard.style.display = 'block';
+        ui.appCard.style.display = 'none';
+        if (unsub) { unsub(); unsub = null; }
+        return;
+      }
+      ui.authCard.style.display = 'none';
+      ui.appCard.style.display = 'block';
+      await ensureProfile(user.uid, { username: user.email });
+
+      const r = userRef(user.uid);
+      if (unsub) unsub();
+      unsub = onSnapshot(r, (snap) => {
+        const d = snap.data() || { total: 0, tasks: [], history: [] };
+        ui.hello.textContent = `Hello, ${d.username || user.email}`;
+        ui.total.textContent = d.total ?? 0;
+
+        // Render tasks
+        ui.tasksBody.innerHTML = "";
+        ui.noTasks.style.display = (d.tasks?.length ? 'none' : 'block');
+        ui.tasksTable.style.display = (d.tasks?.length ? 'table' : 'none');
+        (d.tasks || []).forEach((t, i) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${i+1}</td>
+            <td><input data-id="${t.id}" class="task-name" value="${escapeHtml(t.name)}"/></td>
+            <td><input data-id="${t.id}" class="task-value" type="number" step="1" value="${t.value}"/></td>
+            <td>
+              <div class="row">
+                <button data-id="${t.id}" class="do-task">+ Apply</button>
+                <input data-id="${t.id}" class="task-amt" type="number" step="1" value="${t.value}" style="max-width:120px"/>
+                <button data-id="${t.id}" class="undo-task btn-danger">− Remove</button>
+                <button data-id="${t.id}" class="del-task btn-ghost">Delete</button>
+              </div>
+            </td>`;
+          ui.tasksBody.appendChild(tr);
+        });
+
+        // Render history
+        ui.histBody.innerHTML = "";
+        (d.history || []).slice().reverse().forEach(h => {
+          const sign = h.delta > 0 ? '+' : '';
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${new Date(h.time).toLocaleString()}</td>
+            <td>${escapeHtml(h.note)}</td>
+            <td class="nowrap">${sign}${h.delta}</td>
+            <td>${h.total}</td>`;
+          ui.histBody.appendChild(tr);
+        });
+      });
+    });
+
+    function escapeHtml(s){
+      return String(s).replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+    }
+  </script>
+</body>
+</html>
